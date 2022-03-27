@@ -33,19 +33,24 @@ var selectCoinClick = async () => {
     
 }
 var calculateClick = async () => {
-    let maDaysField = document.getElementById("ma-days-field");
-    let amountField = document.getElementById("amount-field");
-    let showDetailCheckbox = document.getElementById("show-detail");
     let resultLabel = document.getElementById("calc-info");
-    let maDays = parseInt(maDaysField.value);
-    let amount = parseInt(amountField.value);
-    resultLabel.textContent = "Calculating...";
-    let result = await convertMoneyToCoinByMA(selectedCoinId,maDays,amount);
-    if(showDetailCheckbox.value == "on"){
-        resultLabel.textContent = result.more_detail;
+    if(typeof selectedCoinId == "undefined"){
+        resultLabel.textContent = "Please choose a coin.";
     }else{
-        resultLabel.textContent = result.result;
+        let maDaysField = document.getElementById("ma-days-field");
+        let amountField = document.getElementById("amount-field");
+        let showDetailCheckbox = document.getElementById("show-detail");
+        let maDays = parseInt(maDaysField.value);
+        let amount = parseInt(amountField.value);
+        resultLabel.textContent = "Calculating...";
+        let result = await convertMoneyToCoinByMA(selectedCoinId,maDays,amount);
+        if(showDetailCheckbox.value == "on"){
+            resultLabel.textContent = result.more_detail;
+        }else{
+            resultLabel.textContent = result.result;
+        }
     }
+    
 }
 
 var selectCoinFromList = () =>{

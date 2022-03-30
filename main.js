@@ -61,7 +61,6 @@ var selectCoinClick = async () => {
         )
         selectedCoinId = coin.id;
         coinInfoLabel.textContent = coin.name;
-
     }
     
 }

@@ -1,24 +1,57 @@
 var selectedCoinId;
+var allCoins;
 
-function init(){
+var fetchAllTokens = new Promise(async (resolve) => {
+        let response = await fetch("https://api.coingecko.com/api/v3/coins/list");
+        let data = await response.json();
+        let coins = data.map(d => {return {id: d.id, name: d.name}});
+        resolve(coins);
+    }
+);
+
+function preInit(){
+    initTokens.then(init);
+}
+
+let init = async () => {
+    setCurrentDate();
     let coinSelectBtn = document.getElementById("coin-select-btn");
     let calculateBtn = document.getElementById("calculate-btn");
     let coinInfoLabel = document.getElementById("coin-info");
     coinInfoLabel.textContent = "None selected";
     coinSelectBtn.addEventListener("click",selectCoinClick);
     calculateBtn.addEventListener("click",calculateClick);
-    fetchCoins().then(populateSelect)
     
 }
 
-window.onload = init;
+window.onload = preInit;
+
+var initTokens = new Promise(async (resolve) =>  {
+    await fetchAllTokens.then(async (coins) => {
+        allCoins = coins;
+    });
+    resolve();
+});
+
+var setCurrentDate = () => {
+    let date = new Date();
+    let dateSelect = document.getElementById("ma-starting-date");
+    let day = date.getDate();
+    let month = date.getMonth() + 1;
+    let year = date.getFullYear();
+    let monthStr = month > 9 ? `${month}` : `0${month}`;
+    let dayStr = day > 9 ? `${day}` : `0${day}`;
+    dateSelect.value = `${year}-${monthStr}-${dayStr}`;
+}
 
 var selectCoinClick = async () => {
     let contractField = document.getElementById("contract-field");
+    let tokenNameField = document.getElementById("coin-search");
     let contractText = contractField.value;
+    let tokenNameText = tokenNameField.value;
     let coinInfoLabel = document.getElementById("coin-info");
     if (contractText.length == 0){
-        selectCoinFromList()
+        selectCoinFromName(tokenNameText);
     }else{
         let coin = await fetchCoinFromContract(contractText).then(coin => {return coin;}).catch(
             async (err) => {
@@ -37,13 +70,15 @@ var calculateClick = async () => {
     if(typeof selectedCoinId == "undefined"){
         resultLabel.textContent = "Please choose a coin.";
     }else{
+        let dateSelect = document.getElementById("ma-starting-date");
+        
         let maDaysField = document.getElementById("ma-days-field");
         let amountField = document.getElementById("amount-field");
         let showDetailCheckbox = document.getElementById("show-detail");
         let maDays = parseInt(maDaysField.value);
         let amount = parseInt(amountField.value);
         resultLabel.textContent = "Calculating...";
-        let result = await convertMoneyToCoinByMA(selectedCoinId,maDays,amount);
+        let result = await convertMoneyToCoinByMA(dateSelect.value,selectedCoinId,maDays,amount);
         if(showDetailCheckbox.value == "on"){
             resultLabel.textContent = result.more_detail;
         }else{
@@ -53,33 +88,47 @@ var calculateClick = async () => {
     
 }
 
-var selectCoinFromList = () =>{
-    let coinSelect = document.getElementById("coin-select");
-    let coin_name = coinSelect.options[coinSelect.selectedIndex].text;
-    let coin_id = coinSelect.value;
+var selectCoinFromName = (inputName) =>{
+    var isFound = false;
     let coinInfoLabel = document.getElementById("coin-info");
-    selectedCoinId = coin_id;
-    coinInfoLabel.textContent = coin_name;
+    searchName = inputName.replace(/\s+/g, "").toLowerCase();
+    console.log(searchName);
+    for(token of allCoins){
+        
+        if(searchName == token.name.replace(/\s+/g, "").toLowerCase()){
+            selectedCoinId = token.id;
+            coinInfoLabel.textContent = token.name;
+            isFound =true;
+            break;
+        }
+    }
+    if(!isFound){
+        coinInfoLabel.textContent = "Coin has not been found";
+    }
+    
+
 }
 
-var populateSelect = async(coins) => {
-    var coinSelect = document.getElementById("coin-select");
-    coins.sort((a,b) => {
-        if (a.name < b.name){
-            return -1;
-        }else{
-            return 1;
-        }
-    });
-    for(coin of coins){
-        var opt = document.createElement("option");
-        opt.value = coin.id;
-        opt.innerHTML = coin.name;
+// var populateSelect = async(coins) => {
+//     var coinSelect = document.getElementById("coin-select");
+//     coins.sort((a,b) => {
+//         if (a.name < b.name){
+//             return -1;
+//         }else{
+//             return 1;
+//         }
+//     });
+//     for(coin of coins){
+//         var opt = document.createElement("option");
+//         opt.value = coin.id;
+//         opt.innerHTML = coin.name;
         
-        coinSelect.appendChild(opt);
+//         coinSelect.appendChild(opt);
         
-    }
-}
+//     }
+// }
+
+
 
 var fetchCoins = async () => new Promise(async (resolve) => {
     let response = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc");
@@ -135,8 +184,17 @@ var fetchCoinHistory= async (coinId,date) => new Promise(async(resolve) => {
  * @param {number} daysAgo 
  * @returns {string} String of the date before daysAgo days of dd-mm-yyyy format.
  */
- var getNDaysAgoStr = daysAgo => {
+ var getNDaysAgoStr = (startDate, daysAgo) => {
     let pastDate = new Date();
+    splitStartDate = startDate.split("-");
+    
+    let startDay = parseInt(splitStartDate[2]);
+    let startMonth = parseInt(splitStartDate[1]);
+    let startYear = parseInt(splitStartDate[0]);
+    
+    pastDate.setFullYear(startYear);
+    pastDate.setMonth(startMonth - 1);
+    pastDate.setDate(startDay);
     pastDate.setDate(pastDate.getDate()-daysAgo);
     let day = pastDate.getDate();
     let month = pastDate.getMonth() + 1;
@@ -152,10 +210,10 @@ var fetchCoinHistory= async (coinId,date) => new Promise(async(resolve) => {
  * @param {number} daysAgo number of days ago that the prices are fetched 
  * @returns {Promise<Price|Array>} Promise representing the array of Prices
  */
- var fetchPrevNDaysPrices = async (coinId, daysAgo) => new Promise(async(resolve) => {
+ var fetchPrevNDaysPrices = async (startDate, coinId, daysAgo) => new Promise(async(resolve) => {
     var result = []
     for(i=1;i<=daysAgo;i+=1){
-        let date = await getNDaysAgoStr(i);
+        let date = await getNDaysAgoStr(startDate,i);
         let price = await fetchCoinHistory(coinId, date).then(fetchClosingPrice).catch(async (err) => {
             console.log(err);
         });
@@ -207,6 +265,6 @@ var fetchCoinHistory= async (coinId,date) => new Promise(async(resolve) => {
 
 }
 
-var convertMoneyToCoinByMA = async (coinId, days, amount) => {
-    return convertToCoinByMA(amount, await calculateMA(await fetchPrevNDaysPrices(coinId,days)));
+var convertMoneyToCoinByMA = async (startDate,coinId, days, amount) => {
+    return convertToCoinByMA(amount, await calculateMA(await fetchPrevNDaysPrices(startDate,coinId,days)));
 }

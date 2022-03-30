@@ -7,17 +7,19 @@
     <title>Ma Calculator</title>
     
 </head>
-<body onload="init();">
+<body onload="preInit();">
     <form>
         <div class="coin-container">
-            <label for="coin-select" id="a">Either choose a coin: </label><br>
-            <select name="coin=select" id="coin-select"></select><br>
-            <label for="contract-field">Or enter the contract of the coin: </label><br>
+            <label for="coin-search" id="a">Search the token by name: </label><br>
+            <input type="text" name="coin-search" id="coin-search"><br>
+            <label for="contract-field">Or enter the contract of the token: </label><br>
             <input type="text" name="contract-field" id="contract-field"><br>
             <input type="button" value="Choose" id="coin-select-btn"><br>
             <label id="coin-info"></label>
         </div>
         <div class="ma-container">
+            <label for="start-date">Choose last date (chosen date is not included) which ma will be calculated from that:</label><br>
+            <input type="date" name="ma-starting-date" id="ma-starting-date"><br>
             <label for="ma-days-field">Enter moving average days: </label>
             <input type="text" name="ma-days-field" id="ma-days-field"><br>
             <label for="amount-field">Enter the amount (usd): </label>
